@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using System.IO;
 
 
 public class startAndStopService : MonoBehaviour {
@@ -17,13 +18,14 @@ public class startAndStopService : MonoBehaviour {
     public Button landBtn;
     public Button fcstatusbutn;
     public Button videoBtn;
+    public Button save;
     public Text input;
     public Text status;
     public Text product;
     public Text connectionStatus;
     public Text flightControllerStatus;
     public Text buffStatus;
-    public GameObject surface;
+    public RawImage rimg;
     private AndroidJavaObject sc;
     private AndroidJavaClass unityPlayer;
     private AndroidJavaObject unityActivity;
@@ -31,6 +33,8 @@ public class startAndStopService : MonoBehaviour {
     private bool enableVid;
     private bool checkStatus;
     private int opCount;
+    private Texture2D tex2d;
+    private bool write;
 
 
     // Use this for initialization
@@ -44,7 +48,7 @@ public class startAndStopService : MonoBehaviour {
 
         sc = new AndroidJavaObject("uwb.aaron.com.servicestarterlib.serviceConnection", param);
         enableVid = false;
-        checkStatus = true;
+        checkStatus = false;
         opCount = 0;
         start.onClick.AddListener(startServ);
         stop.onClick.AddListener(stopServ);
@@ -57,7 +61,11 @@ public class startAndStopService : MonoBehaviour {
         takeOffBtn.onClick.AddListener(takeOff);
         fcstatusbutn.onClick.AddListener(fcStatus);
         videoBtn.onClick.AddListener(videoState);
-        mat = surface.GetComponent<Material>();
+        save.onClick.AddListener(saveByte);
+        //mat = surface.GetComponent<Renderer>().material;
+        write = false;
+        tex2d = new Texture2D(960, 720);
+        //mat.mainTexture = tex2d;
     }
 	
     void startServ()
@@ -147,24 +155,52 @@ public class startAndStopService : MonoBehaviour {
         }
     }
 
-
+    void saveByte()
+    {
+        write = true;
+        Debug.Log("write set to true");
+    }
     void Update()
     {
-        /*opCount += 1;
-        if(checkStatus == true && opCount>0  && opCount%10==0)
+        opCount += 1;
+        if(checkStatus == true && opCount>0  && opCount%40==0)
         {
             opCount = 0;
             sc.Call("sendCommand", new object[] { "FC_STATUS" });
             sc.Call("sendCommand", new object[] { "REFRESH_DJI" });
-        }*/
-        status.text = sc.Call<string>("get",new object[] {"DATA"});
-        product.text = sc.Call<string>("get", new object[] {"PRODUCT"});
-        connectionStatus.text = sc.Call<string>("get",new object[] { "CONNECTION_STATUS" });
-        flightControllerStatus.text = sc.Call<string>("get", new object[] {"FC_STATUS"});
+            status.text = sc.Call<string>("get", new object[] { "DATA" });
+            product.text = sc.Call<string>("get", new object[] { "PRODUCT" });
+            connectionStatus.text = sc.Call<string>("get", new object[] { "CONNECTION_STATUS" });
+            flightControllerStatus.text = sc.Call<string>("get", new object[] { "FC_STATUS" });
+        }
+        
         if(enableVid == true)
         {
-            sc.Call<byte[]>("getTex");
-            buffStatus.text = "Video received: "+ sc.Call<int>("getBuffSize");
+            byte[] t = sc.Call<byte[]>("getTex");
+            buffStatus.text = "Video received: "+ sc.Call<int>("getBuffSize")+ " A:" + t.Length;
+            tex2d.LoadImage(t);
+            tex2d.Apply();
+            if (write == true)
+            {
+                Debug.Log("Writing file...");
+                byte[] bytes = tex2d.EncodeToPNG();
+                File.WriteAllBytes(Application.persistentDataPath + "/../SavedScreen.png", bytes);
+                write = false;
+                Debug.Log("File written");
+            }
+            rimg.texture = tex2d;
+            
+            //tex2d.LoadRawTextureData(t);
+            //
+            //img.sprite.texture.LoadImage(t);
+            //img.sprite.texture.Apply();
+            //mat.mainTexture = tex2d;
+            //surface.GetComponent<Renderer>().material.mainTexture = tex2d;
+
+            //img.GetComponent<Renderer>().material.mainTexture = new Texture2D(20, 20);
+            
+            
+            //mat.SetTexture()
         }
     }
 
